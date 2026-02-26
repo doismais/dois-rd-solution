@@ -254,18 +254,36 @@ export default function App() {
         return (
             <main className="auth-shell">
                 <motion.section initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="auth-card panel">
-                    <img src="/logo-rosa.png" alt="Dois Mais" className="auth-logo" />
-                    <h1 className="auth-title">Painel Operacional de Fluxos</h1>
-                    <p className="auth-subtitle">RD + Turso + Redis em uma linha temporal única</p>
+                    <div className="auth-orb" />
+                    <div className="auth-brand">
+                        <img src="/logo-rosa.png" alt="Dois Mais" className="auth-logo" />
+                        <span className="auth-chip">Network: Dois Mais Core</span>
+                    </div>
+                    <h1 className="auth-title">Acesso Assinado de Sessão</h1>
+                    <p className="auth-subtitle">Gateway operacional RD · Turso · Redis</p>
+                    <div className="auth-signal-grid">
+                        <div className="auth-signal">
+                            <ShieldCheck size={14} />
+                            <span>Canal protegido</span>
+                        </div>
+                        <div className="auth-signal">
+                            <Database size={14} />
+                            <span>Dados auditáveis</span>
+                        </div>
+                        <div className="auth-signal">
+                            <Activity size={14} />
+                            <span>Fluxo em tempo real</span>
+                        </div>
+                    </div>
                     <form onSubmit={handleLogin} className="auth-form">
                         <input
                             type="password"
-                            placeholder="Senha de acesso"
+                            placeholder="Assinatura privada da sessão"
                             value={password}
                             onChange={(event) => setPassword(event.target.value)}
                         />
                         <button className="btn-primary" type="submit" disabled={loading}>
-                            {loading ? 'Validando...' : 'Entrar'}
+                            {loading ? 'Validando assinatura...' : 'Assinar e Entrar'}
                         </button>
                     </form>
                 </motion.section>
