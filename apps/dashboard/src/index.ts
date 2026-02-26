@@ -177,15 +177,27 @@ async function bootstrap() {
         return reply.code(405).send({ error: 'Method Not Allowed' });
     });
 
-    // Serve Static Files
+    // Serve Troia Landing Page
+    await fastify.register(fastifyStatic, {
+        root: path.resolve(__dirname, '../../troia'),
+        prefix: '/',
+        decorateReply: false
+    });
+
+    // Serve Dashboard (React App)
     await fastify.register(fastifyStatic, {
         root: path.join(__dirname, '../public'),
-        prefix: '/',
+        prefix: '/dashboard',
+        decorateReply: false
     });
 
     // SPA Fallback
-    fastify.setNotFoundHandler((_, reply) => {
-        return reply.sendFile('index.html');
+    fastify.setNotFoundHandler(async (request, reply) => {
+        if (request.url.startsWith('/dashboard')) {
+            return reply.sendFile('index.html', path.join(__dirname, '../public'));
+        }
+        // Fallback for landing page or other routes to landing page index
+        return reply.sendFile('index.html', path.resolve(__dirname, '../../troia'));
     });
 
     const port = Number(process.env.PORT) || 3000;
