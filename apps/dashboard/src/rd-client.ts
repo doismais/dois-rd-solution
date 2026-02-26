@@ -40,6 +40,7 @@ export class RDClient {
     }
 
     async handleCallback(code: string): Promise<void> {
+        console.log('[RDClient] Exchanging authorization code for tokens');
         const response = await fetch('https://api.rd.services/auth/token?token_by=code', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -50,14 +51,15 @@ export class RDClient {
             }),
         });
 
-        const data = await response.json() as any;
-        if (!response.ok) throw new Error(`RD Token Error: ${JSON.stringify(data)}`);
+        const data = await this.parseJsonSafe(response);
+        if (!response.ok) throw new Error(`RD Token Error [${response.status}]: ${JSON.stringify(data)}`);
 
         await this.saveTokens({
             access_token: data.access_token,
             refresh_token: data.refresh_token,
             expires_at: Math.floor(Date.now() / 1000) + (data.expires_in || 3600),
         });
+        console.log('[RDClient] OAuth tokens saved');
     }
 
     private async ensureTokenTableSchema(): Promise<void> {
@@ -113,6 +115,7 @@ export class RDClient {
     }
 
     private async refreshToken(refreshToken: string): Promise<string> {
+        console.log('[RDClient] Refreshing RD access token');
         const response = await fetch('https://api.rd.services/auth/token?token_by=refresh_token', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -123,8 +126,8 @@ export class RDClient {
             }),
         });
 
-        const data = await response.json() as any;
-        if (!response.ok) throw new Error(`RD Refresh Error: ${JSON.stringify(data)}`);
+        const data = await this.parseJsonSafe(response);
+        if (!response.ok) throw new Error(`RD Refresh Error [${response.status}]: ${JSON.stringify(data)}`);
 
         await this.saveTokens({
             access_token: data.access_token,
@@ -132,6 +135,7 @@ export class RDClient {
             expires_at: Math.floor(Date.now() / 1000) + (data.expires_in || 3600),
         });
 
+        console.log('[RDClient] RD token refreshed and persisted');
         return data.access_token;
     }
 
@@ -147,27 +151,33 @@ export class RDClient {
     }
 
     private async fetchWithTokenValidation(url: string): Promise<Response> {
+        const endpoint = this.toEndpointLabel(url);
         const accessToken = await this.getValidToken();
         if (!accessToken) {
             throw new Error('No valid RD Station token found. Please authenticate.');
         }
 
+        console.log(`[RDClient] Requesting ${endpoint}`);
         let response = await fetch(url, {
             headers: { 'Authorization': `Bearer ${accessToken}` }
         });
+        console.log(`[RDClient] ${endpoint} status=${response.status}`);
 
         if (response.status !== 401) {
             return response;
         }
 
+        console.warn(`[RDClient] ${endpoint} returned 401, trying refresh`);
         const refreshedToken = await this.forceRefreshFromStorage();
         if (!refreshedToken) {
+            console.warn(`[RDClient] ${endpoint} refresh token unavailable`);
             return response;
         }
 
         response = await fetch(url, {
             headers: { 'Authorization': `Bearer ${refreshedToken}` }
         });
+        console.log(`[RDClient] ${endpoint} retry status=${response.status}`);
 
         return response;
     }
@@ -177,10 +187,12 @@ export class RDClient {
             `https://api.rd.services/platform/analytics/emails?start_date=${startDate}&end_date=${endDate}`
         );
 
-        const data = await response.json() as any;
-        if (!response.ok) throw new Error(`RD Analytics Error: ${JSON.stringify(data)}`);
+        const data = await this.parseJsonSafe(response);
+        if (!response.ok) throw new Error(`RD Analytics Error [${response.status}]: ${JSON.stringify(data)}`);
 
-        return data.emails || [];
+        const items = data.emails || [];
+        console.log(`[RDClient] Analytics emails received=${Array.isArray(items) ? items.length : 0}`);
+        return items;
     }
 
     async fetchEmails(perPage = 100, maxPages = 10): Promise<RDEmail[]> {
@@ -191,8 +203,8 @@ export class RDClient {
                 `https://api.rd.services/platform/emails?page=${page}&per_page=${perPage}`
             );
 
-            const data = await response.json() as any;
-            if (!response.ok) throw new Error(`RD Emails Error: ${JSON.stringify(data)}`);
+            const data = await this.parseJsonSafe(response);
+            if (!response.ok) throw new Error(`RD Emails Error [${response.status}] page=${page}: ${JSON.stringify(data)}`);
 
             const pageItemsRaw = this.extractEmailItems(data);
             const pageItems = pageItemsRaw.map((item: any) => ({
@@ -209,11 +221,13 @@ export class RDClient {
             })) as RDEmail[];
 
             items.push(...pageItems);
+            console.log(`[RDClient] Emails page=${page} items=${pageItems.length} accumulated=${items.length}`);
 
             const hasNext = this.hasNextEmailPage(data, page, pageItems.length, perPage);
             if (!hasNext) break;
         }
 
+        console.log(`[RDClient] Emails total=${items.length}`);
         return items;
     }
 
@@ -242,5 +256,24 @@ export class RDClient {
         }
 
         return itemCount === perPage;
+    }
+
+    private async parseJsonSafe(response: Response): Promise<any> {
+        const text = await response.text();
+        if (!text) return {};
+        try {
+            return JSON.parse(text);
+        } catch {
+            return { raw: text };
+        }
+    }
+
+    private toEndpointLabel(url: string): string {
+        try {
+            const parsed = new URL(url);
+            return `${parsed.pathname}${parsed.search}`;
+        } catch {
+            return url;
+        }
     }
 }

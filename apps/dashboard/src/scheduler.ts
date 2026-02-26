@@ -2,6 +2,20 @@ import cron from 'node-cron';
 import { RDClient } from './rd-client.js';
 import { createClient, Client } from '@libsql/client';
 
+export interface SyncMetricsResult {
+    runId: string;
+    status: 'success' | 'skipped_no_token' | 'error';
+    startDate: string;
+    endDate: string;
+    startedAt: string;
+    finishedAt: string;
+    emailsTotal: number;
+    emailsUseful: number;
+    analyticsTotal: number;
+    upsertsTotal: number;
+    errorMessage?: string;
+}
+
 export class Scheduler {
     private rd: RDClient;
     private db: Client;
@@ -79,14 +93,41 @@ export class Scheduler {
         updated_at    TEXT NOT NULL
       )
     `);
+
+        await this.db.execute(`
+      CREATE TABLE IF NOT EXISTS rd_sync_runs (
+        id              INTEGER PRIMARY KEY AUTOINCREMENT,
+        run_id          TEXT NOT NULL UNIQUE,
+        started_at      TEXT NOT NULL,
+        finished_at     TEXT,
+        start_date      TEXT,
+        end_date        TEXT,
+        status          TEXT NOT NULL,
+        emails_total    INTEGER NOT NULL DEFAULT 0,
+        emails_useful   INTEGER NOT NULL DEFAULT 0,
+        analytics_total INTEGER NOT NULL DEFAULT 0,
+        upserts_total   INTEGER NOT NULL DEFAULT 0,
+        error_message   TEXT,
+        created_at      TEXT NOT NULL DEFAULT (datetime('now'))
+      )
+    `);
+        await this.db.execute("CREATE INDEX IF NOT EXISTS idx_rd_sync_runs_started ON rd_sync_runs(started_at)");
     }
 
-    async syncMetrics() {
-        console.log('[Scheduler] Starting RD Station sync...');
-        try {
-            const end = new Date().toISOString().split('T')[0];
-            const start = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    async syncMetrics(): Promise<SyncMetricsResult> {
+        const runId = `sync_${Date.now()}`;
+        const startedAt = new Date().toISOString();
+        const end = new Date().toISOString().split('T')[0];
+        const start = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
+        await this.db.execute({
+            sql: `INSERT INTO rd_sync_runs (run_id, started_at, start_date, end_date, status) VALUES (?, ?, ?, ?, ?)`,
+            args: [runId, startedAt, start, end, 'running']
+        });
+
+        console.log(`[Scheduler] Starting RD Station sync run=${runId} range=${start}..${end}`);
+
+        try {
             const [emails, analytics] = await Promise.all([
                 this.rd.fetchEmails(100, 10),
                 this.rd.fetchEmailAnalytics(start, end)
@@ -187,16 +228,78 @@ export class Scheduler {
                     ]
                 });
             }
-            console.log(`[Scheduler] Sync complete. Processed ${campaigns.length} campaigns (emails=${usefulEmails.length}/${emails.length}, analytics=${analytics.length}).`);
+
+            const finishedAt = new Date().toISOString();
+            await this.db.execute({
+                sql: `UPDATE rd_sync_runs
+                      SET finished_at = ?, status = ?, emails_total = ?, emails_useful = ?, analytics_total = ?, upserts_total = ?, error_message = NULL
+                      WHERE run_id = ?`,
+                args: [finishedAt, 'success', emails.length, usefulEmails.length, analytics.length, campaigns.length, runId]
+            });
+
+            console.log(`[Scheduler] Sync complete run=${runId} campaigns=${campaigns.length} emails=${usefulEmails.length}/${emails.length} analytics=${analytics.length}`);
+
+            return {
+                runId,
+                status: 'success',
+                startDate: start,
+                endDate: end,
+                startedAt,
+                finishedAt,
+                emailsTotal: emails.length,
+                emailsUseful: usefulEmails.length,
+                analyticsTotal: analytics.length,
+                upsertsTotal: campaigns.length
+            };
         } catch (err) {
             const message = err instanceof Error ? err.message : String(err);
+            const finishedAt = new Date().toISOString();
 
             if (message.includes('No valid RD Station token found')) {
-                console.warn('[Scheduler] RD sync skipped: token not configured yet. Authenticate at /api/rd/auth.');
-                return;
+                await this.db.execute({
+                    sql: `UPDATE rd_sync_runs
+                          SET finished_at = ?, status = ?, error_message = ?
+                          WHERE run_id = ?`,
+                    args: [finishedAt, 'skipped_no_token', message, runId]
+                });
+
+                console.warn(`[Scheduler] RD sync skipped run=${runId}: token not configured. Authenticate at /api/rd/auth.`);
+                return {
+                    runId,
+                    status: 'skipped_no_token',
+                    startDate: start,
+                    endDate: end,
+                    startedAt,
+                    finishedAt,
+                    emailsTotal: 0,
+                    emailsUseful: 0,
+                    analyticsTotal: 0,
+                    upsertsTotal: 0,
+                    errorMessage: message
+                };
             }
 
-            console.error('[Scheduler] Sync failed:', err);
+            await this.db.execute({
+                sql: `UPDATE rd_sync_runs
+                      SET finished_at = ?, status = ?, error_message = ?
+                      WHERE run_id = ?`,
+                args: [finishedAt, 'error', message, runId]
+            });
+
+            console.error(`[Scheduler] Sync failed run=${runId}:`, err);
+            return {
+                runId,
+                status: 'error',
+                startDate: start,
+                endDate: end,
+                startedAt,
+                finishedAt,
+                emailsTotal: 0,
+                emailsUseful: 0,
+                analyticsTotal: 0,
+                upsertsTotal: 0,
+                errorMessage: message
+            };
         }
     }
 

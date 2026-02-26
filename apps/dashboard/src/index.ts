@@ -162,8 +162,48 @@ async function bootstrap() {
             return reply.code(401).send({ error: 'Unauthorized' });
         }
 
-        await scheduler.syncMetrics();
-        return { ok: true };
+        const result = await scheduler.syncMetrics();
+        return { ok: result.status === 'success', sync: result };
+    });
+
+    fastify.get('/api/rd/diagnostics', async (request: FastifyRequest, reply: FastifyReply) => {
+        const secret = request.headers['x-secret'];
+        if (secret !== process.env.DASHBOARD_SECRET) {
+            return reply.code(401).send({ error: 'Unauthorized' });
+        }
+
+        const [tokenRows, cacheCountRows, eventsCountRows, leadsCountRows, recentSyncRows, recentCacheRows] = await Promise.all([
+            rd.db.execute("SELECT updated_at, expires_at FROM rd_tokens WHERE id = 1"),
+            rd.db.execute("SELECT COUNT(*) AS count FROM rd_cache"),
+            rd.db.execute("SELECT COUNT(*) AS count FROM rd_events"),
+            rd.db.execute("SELECT COUNT(*) AS count FROM leads"),
+            rd.db.execute("SELECT run_id, started_at, finished_at, status, emails_total, emails_useful, analytics_total, upserts_total, error_message FROM rd_sync_runs ORDER BY started_at DESC LIMIT 10"),
+            rd.db.execute("SELECT campaign_id, campaign_name, sent, opened, clicked, status, sent_at, cached_at FROM rd_cache ORDER BY cached_at DESC LIMIT 10"),
+        ]);
+
+        const tokenRow = tokenRows.rows[0] as any;
+        const nowSec = Math.floor(Date.now() / 1000);
+        const expiresAt = tokenRow ? Number(tokenRow.expires_at || 0) : 0;
+        const secondsToExpire = expiresAt > 0 ? Math.max(0, expiresAt - nowSec) : null;
+
+        return {
+            generatedAt: new Date().toISOString(),
+            token: tokenRow
+                ? {
+                    exists: true,
+                    updatedAt: tokenRow.updated_at,
+                    expiresAtEpoch: expiresAt,
+                    secondsToExpire
+                }
+                : { exists: false },
+            counts: {
+                rdCache: Number((cacheCountRows.rows[0] as any)?.count || 0),
+                rdEvents: Number((eventsCountRows.rows[0] as any)?.count || 0),
+                leads: Number((leadsCountRows.rows[0] as any)?.count || 0)
+            },
+            recentSyncRuns: recentSyncRows.rows,
+            recentRDCampaigns: recentCacheRows.rows
+        };
     });
 
     // Health check

@@ -257,6 +257,38 @@ Antes de qualquer ativação:
 4. Executar 1 teste de `curl` para cada gatilho.
 5. Conferir ingestão no dashboard (`/api/rd/events` com `x-secret`).
 
+## Diagnóstico rápido de sync RD
+
+Comandos úteis em produção:
+
+```bash
+curl -sS -X POST https://dois-rd-solution-production.up.railway.app/api/rd/sync \
+  -H "x-secret: $DASHBOARD_SECRET"
+```
+
+Resposta agora inclui resumo do run:
+
+- `status` (`success`, `skipped_no_token`, `error`)
+- `emailsTotal`
+- `emailsUseful`
+- `analyticsTotal`
+- `upsertsTotal`
+- `errorMessage` (quando houver)
+
+Para inspecionar histórico e estado atual:
+
+```bash
+curl -sS https://dois-rd-solution-production.up.railway.app/api/rd/diagnostics \
+  -H "x-secret: $DASHBOARD_SECRET" | jq
+```
+
+Esse endpoint retorna:
+
+- status do token RD (sem expor token)
+- contagem em `rd_cache`, `rd_events`, `leads`
+- últimos runs de sync (`rd_sync_runs`)
+- últimas campanhas gravadas no cache RD
+
 ## Resposta rápida de troubleshooting
 
 - `WRONGPASS` no domínio Upstash:
