@@ -48,6 +48,21 @@ export class Scheduler {
     `);
         await this.db.execute("CREATE INDEX IF NOT EXISTS idx_rd_events_campaign ON rd_events(campaign_id)");
         await this.db.execute("CREATE INDEX IF NOT EXISTS idx_rd_events_type ON rd_events(event_type)");
+
+        await this.db.execute(`
+      CREATE TABLE IF NOT EXISTS leads (
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        event      TEXT NOT NULL,
+        src        TEXT NOT NULL DEFAULT 'direct',
+        name       TEXT,
+        email      TEXT,
+        company    TEXT,
+        phone      TEXT,
+        message    TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )
+    `);
+        await this.db.execute("CREATE INDEX IF NOT EXISTS idx_leads_event ON leads(event)");
     }
 
     async syncMetrics() {
