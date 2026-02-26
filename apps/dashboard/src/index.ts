@@ -43,14 +43,7 @@ async function bootstrap() {
 
     // Dashboard Metrics
     fastify.get('/api/metrics', async (request: FastifyRequest, reply: FastifyReply) => {
-        // Simple secret check (Phase 4 requirement)
         const secret = request.headers['x-secret'];
-        console.log('[DEBUG] Auth Check:', {
-            received: secret,
-            expected: process.env.DASHBOARD_SECRET,
-            match: secret === process.env.DASHBOARD_SECRET
-        });
-
         if (secret !== process.env.DASHBOARD_SECRET) {
             return reply.code(401).send({ error: 'Unauthorized' });
         }

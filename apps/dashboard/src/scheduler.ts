@@ -104,6 +104,13 @@ export class Scheduler {
             }
             console.log(`[Scheduler] Sync complete. Processed ${campaigns.length} campaigns.`);
         } catch (err) {
+            const message = err instanceof Error ? err.message : String(err);
+
+            if (message.includes('No valid RD Station token found')) {
+                console.warn('[Scheduler] RD sync skipped: token not configured yet. Authenticate at /api/rd/auth.');
+                return;
+            }
+
             console.error('[Scheduler] Sync failed:', err);
         }
     }
