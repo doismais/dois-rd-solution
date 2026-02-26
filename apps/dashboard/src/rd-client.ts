@@ -27,7 +27,7 @@ export class RDClient {
     }
 
     async handleCallback(code: string): Promise<void> {
-        const response = await fetch('https://api.rd.services/auth/token', {
+        const response = await fetch('https://api.rd.services/auth/token?token_by=code', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -100,7 +100,7 @@ export class RDClient {
     }
 
     private async refreshToken(refreshToken: string): Promise<string> {
-        const response = await fetch('https://api.rd.services/auth/token', {
+        const response = await fetch('https://api.rd.services/auth/token?token_by=refresh_token', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -122,13 +122,47 @@ export class RDClient {
         return data.access_token;
     }
 
-    async fetchEmailAnalytics(startDate: string, endDate: string): Promise<any[]> {
-        const token = await this.getValidToken();
-        if (!token) throw new Error('No valid RD Station token found. Please authenticate.');
+    private async forceRefreshFromStorage(): Promise<string | null> {
+        await this.ensureTokenTableSchema();
+        const result = await this.db.execute("SELECT refresh_token FROM rd_tokens WHERE id = 1");
+        if (result.rows.length === 0) return null;
 
-        const response = await fetch(`https://api.rd.services/platform/analytics/emails?start_date=${startDate}&end_date=${endDate}`, {
-            headers: { 'Authorization': `Bearer ${token}` }
+        const refreshToken = String((result.rows[0] as any).refresh_token || '');
+        if (!refreshToken) return null;
+
+        return this.refreshToken(refreshToken);
+    }
+
+    private async fetchWithTokenValidation(url: string): Promise<Response> {
+        const accessToken = await this.getValidToken();
+        if (!accessToken) {
+            throw new Error('No valid RD Station token found. Please authenticate.');
+        }
+
+        let response = await fetch(url, {
+            headers: { 'Authorization': `Bearer ${accessToken}` }
         });
+
+        if (response.status !== 401) {
+            return response;
+        }
+
+        const refreshedToken = await this.forceRefreshFromStorage();
+        if (!refreshedToken) {
+            return response;
+        }
+
+        response = await fetch(url, {
+            headers: { 'Authorization': `Bearer ${refreshedToken}` }
+        });
+
+        return response;
+    }
+
+    async fetchEmailAnalytics(startDate: string, endDate: string): Promise<any[]> {
+        const response = await this.fetchWithTokenValidation(
+            `https://api.rd.services/platform/analytics/emails?start_date=${startDate}&end_date=${endDate}`
+        );
 
         const data = await response.json() as any;
         if (!response.ok) throw new Error(`RD Analytics Error: ${JSON.stringify(data)}`);
