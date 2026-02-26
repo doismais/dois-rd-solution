@@ -19,6 +19,14 @@ const fastify: FastifyInstance = Fastify({
 const rd = new RDClient();
 const scheduler = new Scheduler();
 
+const normalizeForMatch = (value: string): string => {
+    return String(value || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '');
+};
+
 async function bootstrap() {
     await scheduler.initSchema();
     scheduler.start();
@@ -56,10 +64,11 @@ async function bootstrap() {
         // Enhancement: Try to match RD Campaigns with Local Events
         // This is a simplified matching for the funnel
         const enhancedMetrics = metrics.map(m => {
-            // Find a campaign that contains the event name (e.g., 'hospitalar')
-            const campaign = rdData.rows.find(row =>
-                (row.campaign_name as string).toLowerCase().includes(m.event.toLowerCase())
-            );
+            const eventKey = normalizeForMatch(m.event);
+            const campaign = rdData.rows.find(row => {
+                const nameKey = normalizeForMatch(String(row.campaign_name || ''));
+                return nameKey.includes(eventKey) || eventKey.includes(nameKey);
+            });
 
             if (campaign) {
                 return {

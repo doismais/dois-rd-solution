@@ -20,8 +20,24 @@ Evitar retrabalho em OAuth e Webhooks do RD Station, padronizando:
 - Persistência:
   - `rd_tokens` (OAuth)
   - `rd_events` (eventos webhook)
-  - `rd_cache` (analytics de e-mail)
+  - `rd_cache` (catálogo + performance de e-mail)
   - `leads` (interações)
+
+## Ingestão de e-mails RD (fonte de verdade)
+
+Para refletir o que aparece na tela de Email do RD Station, o sync usa duas leituras:
+
+1. `GET /platform/emails`
+   - catálogo de campanhas de e-mail
+   - nome, status, tipo, data de envio, leads selecionados
+2. `GET /platform/analytics/emails?start_date=YYYY-MM-DD&end_date=YYYY-MM-DD`
+   - desempenho de envio (enviados, abertos, clicados, taxas, bounces)
+
+Regra de consolidação:
+
+- merge por `campaign_id` (com fallback determinístico por nome)
+- persistência unificada em `rd_cache`
+- o dashboard lê `rd_cache` para renderizar tabela e KPIs
 
 ## Decisão de superfícies (mantida)
 
@@ -251,3 +267,11 @@ Antes de qualquer ativação:
 - `Unsupported type of value` no webhook:
   - payload não compatível com parser ativo em produção
   - usar formato legado ou publicar parser robusto
+
+- Dashboard com `0` em Enviados/Abertos/Clicados enquanto RD mostra números:
+  1. confirmar OAuth concluído em `/api/rd/auth` + `/api/rd/callback`
+  2. executar sync manual em `POST /api/rd/sync` com header `x-secret`
+  3. checar logs do scheduler para contagem:
+     - `emails=<n>`
+     - `analytics=<n>`
+  4. validar se as campanhas existem em `rd_cache` com `campaign_name` e `sent`

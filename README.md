@@ -20,6 +20,8 @@ RD Station           Landing Page           WhatsApp Click
 (email campaigns)    (static HTML/CSS/JS)   (trackAndRedirect)
       |                     |                      |
       | OAuth + cron        | POST /api/track       | POST /api/leads
+      | /platform/emails    |                      |
+      | /analytics/emails   |                      |
       |                     |                      |
       +---------------------+----------------------+
                             |
@@ -62,7 +64,7 @@ dois_mais_rd_solution/
 │   └── dashboard/                ← serviço Railway (único deploy)
 │       ├── src/
 │       │   ├── index.ts          ← Fastify bootstrap
-│       │   ├── rd-client.ts      ← OAuth2 + fetchEmailAnalytics
+│       │   ├── rd-client.ts      ← OAuth2 + fetchEmails + fetchEmailAnalytics
 │       │   ├── scheduler.ts      ← node-cron: sync RD 1x/hora
 │       │   ├── storage/
 │       │   │   ├── types.ts      ← StorageAdapter interface
@@ -108,6 +110,11 @@ CREATE TABLE rd_cache (
   sent          INTEGER, delivered INTEGER,
   opened        INTEGER, clicked   INTEGER, bounced INTEGER,
   open_rate     REAL,    click_rate REAL,
+  status        TEXT,
+  email_type    TEXT,
+  leads_count   INTEGER,
+  rd_created_at TEXT,
+  rd_updated_at TEXT,
   cached_at     TEXT NOT NULL
 );
 

@@ -31,11 +31,15 @@ interface Campaign {
 interface RDCampaign {
     campaign_id?: string | number;
     campaign_name?: string;
+    sent_at?: string | null;
     sent?: number;
     opened?: number;
     clicked?: number;
     open_rate?: number;
     click_rate?: number;
+    status?: string | null;
+    email_type?: string | null;
+    leads_count?: number | null;
     cached_at?: string;
 }
 
@@ -256,6 +260,12 @@ export default function App() {
             sourceMap.set(key, (sourceMap.get(key) || 0) + 1);
         }
 
+        const rdContactEvents = rdEvents.filter((item) => Boolean(item.lead_email)).length;
+        if (rdContactEvents > 0) {
+            const key = 'rd station';
+            sourceMap.set(key, (sourceMap.get(key) || 0) + rdContactEvents);
+        }
+
         const sources = Array.from(sourceMap.entries())
             .map(([src, count]) => ({ src, count }))
             .sort((a, b) => b.count - a.count)
@@ -293,11 +303,14 @@ export default function App() {
                 return {
                     id: String(item.campaign_id || index),
                     name,
+                    sentAt: item.sent_at || null,
                     sent,
                     opened,
                     clicked,
                     openRate: item.open_rate ? `${Number(item.open_rate).toFixed(1)}%` : formatPercent(opened, sent),
                     clickRate: item.click_rate ? `${Number(item.click_rate).toFixed(1)}%` : formatPercent(clicked, sent),
+                    status: item.status || '--',
+                    type: item.email_type || '--',
                     cachedAt: item.cached_at
                 };
             })
@@ -541,6 +554,9 @@ export default function App() {
                             <thead>
                                 <tr>
                                     <th>Campanha RD</th>
+                                    <th>Data de envio</th>
+                                    <th>Status</th>
+                                    <th>Tipo</th>
                                     <th>Enviados</th>
                                     <th>Abertos</th>
                                     <th>Clicados</th>
@@ -553,6 +569,9 @@ export default function App() {
                                 {summary.rdCampaignRows.slice(0, 20).map((row) => (
                                     <tr key={row.id}>
                                         <td><strong>{row.name}</strong></td>
+                                        <td>{row.sentAt ? new Date(row.sentAt).toLocaleString() : '--'}</td>
+                                        <td>{row.status}</td>
+                                        <td>{row.type}</td>
                                         <td>{formatNumber(row.sent)}</td>
                                         <td>{formatNumber(row.opened)}</td>
                                         <td>{formatNumber(row.clicked)}</td>
@@ -563,7 +582,7 @@ export default function App() {
                                 ))}
                                 {summary.rdCampaignRows.length === 0 && (
                                     <tr>
-                                        <td colSpan={7}>Ainda não há campanhas carregadas. Clique em “Atualizar dados do RD”.</td>
+                                        <td colSpan={10}>Ainda não há campanhas carregadas. Clique em “Atualizar dados do RD”.</td>
                                     </tr>
                                 )}
                             </tbody>
@@ -661,15 +680,15 @@ export default function App() {
             <footer className="panel dashboard-footer">
                 <div>
                     <ShieldCheck size={14} />
-                    <span>Painel unificado de resultados</span>
+                    <span>Resumo geral de resultados</span>
                 </div>
                 <div>
                     <Database size={14} />
-                    <span>Atualização automática a cada 30 segundos</span>
+                    <span>Dados renovados a cada 30 segundos</span>
                 </div>
                 <div>
                     <BarChart3 size={14} />
-                    <span>Pronto para apresentação ao cliente</span>
+                    <span>Dados tratados para melhor visualização</span>
                 </div>
                 <div>
                     <span>

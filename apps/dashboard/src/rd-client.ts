@@ -6,6 +6,19 @@ export interface RDToken {
     expires_at: number; // timestamp in seconds
 }
 
+export interface RDEmail {
+    id: string;
+    name: string;
+    created_at?: string | null;
+    updated_at?: string | null;
+    send_at?: string | null;
+    leads_count?: number | null;
+    status?: string | null;
+    type?: string | null;
+    is_predictive_sending?: boolean | null;
+    sending_is_imminent?: boolean | null;
+}
+
 export class RDClient {
     private clientId: string;
     private clientSecret: string;
@@ -168,5 +181,66 @@ export class RDClient {
         if (!response.ok) throw new Error(`RD Analytics Error: ${JSON.stringify(data)}`);
 
         return data.emails || [];
+    }
+
+    async fetchEmails(perPage = 100, maxPages = 10): Promise<RDEmail[]> {
+        const items: RDEmail[] = [];
+
+        for (let page = 1; page <= maxPages; page++) {
+            const response = await this.fetchWithTokenValidation(
+                `https://api.rd.services/platform/emails?page=${page}&per_page=${perPage}`
+            );
+
+            const data = await response.json() as any;
+            if (!response.ok) throw new Error(`RD Emails Error: ${JSON.stringify(data)}`);
+
+            const pageItemsRaw = this.extractEmailItems(data);
+            const pageItems = pageItemsRaw.map((item: any) => ({
+                id: String(item.id),
+                name: String(item.name || `email-${item.id}`),
+                created_at: item.created_at || null,
+                updated_at: item.updated_at || null,
+                send_at: item.send_at || null,
+                leads_count: item.leads_count ?? null,
+                status: item.status || null,
+                type: item.type || null,
+                is_predictive_sending: item.is_predictive_sending ?? null,
+                sending_is_imminent: item.sending_is_imminent ?? null,
+            })) as RDEmail[];
+
+            items.push(...pageItems);
+
+            const hasNext = this.hasNextEmailPage(data, page, pageItems.length, perPage);
+            if (!hasNext) break;
+        }
+
+        return items;
+    }
+
+    private extractEmailItems(data: any): any[] {
+        if (Array.isArray(data)) return data;
+        if (Array.isArray(data?.items)) return data.items;
+        if (Array.isArray(data?.emails)) return data.emails;
+        return [];
+    }
+
+    private hasNextEmailPage(data: any, page: number, itemCount: number, perPage: number): boolean {
+        if (typeof data?.total_pages === 'number' && typeof data?.page === 'number') {
+            return data.page < data.total_pages;
+        }
+
+        if (typeof data?.next_page === 'number') {
+            return data.next_page > page;
+        }
+
+        if (data?.next_page) {
+            return true;
+        }
+
+        if (data?.pagination?.next_page) {
+            return true;
+        }
+
+        return itemCount === perPage;
     }
 }
