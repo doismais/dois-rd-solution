@@ -261,9 +261,10 @@ export default function App() {
         }
 
         const rdContactEvents = rdEvents.filter((item) => Boolean(item.lead_email)).length;
-        if (rdContactEvents > 0) {
+        const rdVolume = rdContactEvents > 0 ? rdContactEvents : rdEvents.length;
+        if (rdVolume > 0) {
             const key = 'rd station';
-            sourceMap.set(key, (sourceMap.get(key) || 0) + rdContactEvents);
+            sourceMap.set(key, (sourceMap.get(key) || 0) + rdVolume);
         }
 
         const sources = Array.from(sourceMap.entries())
@@ -350,6 +351,18 @@ export default function App() {
             { stage: 'Oportunidades', value: summary.opportunities, color: '#9f7bff' }
         ];
     }, [summary]);
+
+    const hasCampaignPerformanceData = useMemo(
+        () => summary.campaignRows.some((row) => row.sent > 0 || row.opened > 0 || row.clicked > 0 || row.pageViews > 0 || row.leads > 0),
+        [summary.campaignRows]
+    );
+    const hasRDCampaignData = useMemo(
+        () => summary.rdCampaignRows.some((row) => row.sent > 0 || row.opened > 0 || row.clicked > 0),
+        [summary.rdCampaignRows]
+    );
+    const hasSourceData = summary.sources.length > 0;
+    const hasRDEventData = rdEvents.length > 0;
+    const hasLeadsData = leads.length > 0;
 
     if (!isAuthenticated) {
         return (
@@ -504,11 +517,12 @@ export default function App() {
                     </div>
                 </article>
 
-                <article className="panel span-12">
+                <article className={`panel span-12 ${hasCampaignPerformanceData ? '' : 'panel-unavailable'}`}>
                     <div className="panel-headline">
                         <h2>Campanhas por Resultado</h2>
                         <p>Organizado por leads e desempenho</p>
                     </div>
+                    {!hasCampaignPerformanceData && <p className="panel-unavailable-note">Dados em sincronização</p>}
                     <div className="table-wrap">
                         <table className="data-table">
                             <thead>
@@ -544,11 +558,12 @@ export default function App() {
                     </div>
                 </article>
 
-                <article className="panel span-12">
+                <article className={`panel span-12 ${hasRDCampaignData ? '' : 'panel-unavailable'}`}>
                     <div className="panel-headline">
                         <h2>Campanhas de Email (RD)</h2>
                         <p>Números recebidos diretamente da conta de e-mail</p>
                     </div>
+                    {!hasRDCampaignData && <p className="panel-unavailable-note">Dados em sincronização</p>}
                     <div className="table-wrap compact">
                         <table className="data-table">
                             <thead>
@@ -590,11 +605,12 @@ export default function App() {
                     </div>
                 </article>
 
-                <article className="panel span-4">
+                <article className={`panel span-4 ${hasSourceData ? '' : 'panel-unavailable'}`}>
                     <div className="panel-headline">
                         <h2>Origem dos Contatos</h2>
                         <p>Canais com maior volume</p>
                     </div>
+                    {!hasSourceData && <p className="panel-unavailable-note">Dados em sincronização</p>}
                     <ul className="source-ranking">
                         {summary.sources.map((item) => (
                             <li key={item.src}>
@@ -606,11 +622,12 @@ export default function App() {
                     </ul>
                 </article>
 
-                <article className="panel span-8">
+                <article className={`panel span-8 ${hasRDEventData ? '' : 'panel-unavailable'}`}>
                     <div className="panel-headline">
                         <h2>Interações Recentes no RD</h2>
                         <p>Movimentações mais recentes da conta</p>
                     </div>
+                    {!hasRDEventData && <p className="panel-unavailable-note">Dados em sincronização</p>}
                     <div className="table-wrap compact">
                         <table className="data-table">
                             <thead>
@@ -640,11 +657,12 @@ export default function App() {
                     </div>
                 </article>
 
-                <article className="panel span-12">
+                <article className={`panel span-12 ${hasLeadsData ? '' : 'panel-unavailable'}`}>
                     <div className="panel-headline">
                         <h2>Leads Capturados</h2>
                         <p>Base comercial para acompanhamento</p>
                     </div>
+                    {!hasLeadsData && <p className="panel-unavailable-note">Dados em sincronização</p>}
                     <div className="table-wrap compact">
                         <table className="data-table">
                             <thead>
