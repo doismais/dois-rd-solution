@@ -422,6 +422,15 @@ body {
     font-size: 0.76rem;
 }
 
+.footer-credit-link {
+    color: var(--text-main);
+    text-decoration: none;
+}
+
+.footer-credit-link:hover {
+    color: var(--blue);
+}
+
 .auth-shell {
     min-height: 100vh;
     display: grid;

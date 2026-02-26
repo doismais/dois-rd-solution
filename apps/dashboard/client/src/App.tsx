@@ -97,6 +97,12 @@ const maskEmail = (email?: string): string => {
     return `${safeLocal}@${domain}`;
 };
 
+const displaySource = (src?: string): string => {
+    const normalized = String(src || '').trim().toLowerCase();
+    if (!normalized || normalized === 'direct') return 'direto';
+    return src || 'direto';
+};
+
 const KpiCard = ({ priority, title, value, subtitle, tone, icon: Icon }: KpiCardProps) => (
     <motion.article
         initial={{ opacity: 0, y: 8 }}
@@ -246,7 +252,7 @@ export default function App() {
 
         const sourceMap = new Map<string, number>();
         for (const lead of leads) {
-            const key = (lead.src || 'direct').toLowerCase();
+            const key = displaySource(lead.src).toLowerCase();
             sourceMap.set(key, (sourceMap.get(key) || 0) + 1);
         }
 
@@ -339,10 +345,10 @@ export default function App() {
                     <div className="auth-orb" />
                     <div className="auth-brand">
                         <img src="/dashboard/logo-rosa.png" alt="Dois Mais" className="auth-logo" />
-                        <span className="auth-chip">Network: Dois Mais Core</span>
+                        <span className="auth-chip">Ambiente Dois Mais</span>
                     </div>
-                    <h1 className="auth-title">Acesso Assinado de Sessão</h1>
-                    <p className="auth-subtitle">Gateway operacional RD · Turso · Redis</p>
+                    <h1 className="auth-title">Acesso Administrador</h1>
+                    <p className="auth-subtitle">Painel integrado de resultados e oportunidades</p>
                     <div className="auth-signal-grid">
                         <div className="auth-signal">
                             <ShieldCheck size={14} />
@@ -350,22 +356,22 @@ export default function App() {
                         </div>
                         <div className="auth-signal">
                             <Database size={14} />
-                            <span>Dados auditáveis</span>
+                            <span>Dados confiáveis</span>
                         </div>
                         <div className="auth-signal">
                             <Activity size={14} />
-                            <span>Fluxo em tempo real</span>
+                            <span>Atualização contínua</span>
                         </div>
                     </div>
                     <form onSubmit={handleLogin} className="auth-form">
                         <input
                             type="password"
-                            placeholder="Assinatura privada da sessão"
+                            placeholder="Senha de acesso"
                             value={password}
                             onChange={(event) => setPassword(event.target.value)}
                         />
                         <button className="btn-primary" type="submit" disabled={loading}>
-                            {loading ? 'Validando assinatura...' : 'Assinar e Entrar'}
+                            {loading ? 'Validando acesso...' : 'Entrar no painel'}
                         </button>
                     </form>
                 </motion.section>
@@ -379,7 +385,7 @@ export default function App() {
                 <div className="brand-block">
                     <img src="/dashboard/logo-rosa.png" alt="Dois Mais" className="brand-logo" />
                     <div>
-                        <p className="brand-title">Dois Mais · Radar Operacional</p>
+                        <p className="brand-title">Dois Mais · Painel Executivo</p>
                         <p className="brand-subtitle">Cliente: Troia Produções</p>
                     </div>
                 </div>
@@ -389,7 +395,7 @@ export default function App() {
                     </span>
                     <button className="ghost-btn" onClick={syncRDNow} disabled={syncingRD}>
                         <Database size={16} />
-                        <span>{syncingRD ? 'Sincronizando RD...' : 'Sync RD agora'}</span>
+                        <span>{syncingRD ? 'Buscando dados no RD...' : 'Atualizar dados do RD'}</span>
                     </button>
                     <button className="ghost-btn" onClick={() => fetchData(password)}>
                         <RefreshCw size={16} />
@@ -399,17 +405,17 @@ export default function App() {
             </header>
 
             <section className="dashboard-grid">
-                <div className="span-2"><KpiCard priority="1" title="Leads" value={formatNumber(summary.totalLeads)} subtitle="Turso · captação final" tone="green" icon={Users} /></div>
-                <div className="span-2"><KpiCard priority="2" title="Oportunidades" value={formatNumber(summary.opportunities)} subtitle="RD Webhook · oportunidade" tone="purple" icon={Target} /></div>
-                <div className="span-2"><KpiCard priority="3" title="Visitas" value={formatNumber(summary.totalPageViews)} subtitle="Redis · tráfego rastreado" tone="blue" icon={MousePointer2} /></div>
-                <div className="span-2"><KpiCard priority="4" title="Emails Enviados" value={formatNumber(summary.sentForDisplay)} subtitle="RD Campaign Analytics" tone="pink" icon={Send} /></div>
-                <div className="span-2"><KpiCard priority="5" title="CTR" value={summary.ctr} subtitle="Clicados / Enviados" tone="yellow" icon={Mail} /></div>
-                <div className="span-2"><KpiCard priority="6" title="Visita para Lead" value={summary.visitToLead} subtitle="Leads / Visitas" tone="slate" icon={Activity} /></div>
+                <div className="span-2"><KpiCard priority="1" title="Leads" value={formatNumber(summary.totalLeads)} subtitle="Leads capturados" tone="green" icon={Users} /></div>
+                <div className="span-2"><KpiCard priority="2" title="Oportunidades" value={formatNumber(summary.opportunities)} subtitle="Oportunidades identificadas" tone="purple" icon={Target} /></div>
+                <div className="span-2"><KpiCard priority="3" title="Visitas" value={formatNumber(summary.totalPageViews)} subtitle="Visitantes nos links" tone="blue" icon={MousePointer2} /></div>
+                <div className="span-2"><KpiCard priority="4" title="Emails Enviados" value={formatNumber(summary.sentForDisplay)} subtitle="Campanhas de e-mail" tone="pink" icon={Send} /></div>
+                <div className="span-2"><KpiCard priority="5" title="Taxa de Clique" value={summary.ctr} subtitle="Cliques por envio" tone="yellow" icon={Mail} /></div>
+                <div className="span-2"><KpiCard priority="6" title="Conversão de Visita" value={summary.visitToLead} subtitle="Leads por visita" tone="slate" icon={Activity} /></div>
 
                 <article className="panel span-8">
                     <div className="panel-headline">
-                        <h2>Fluxo Consolidado do Funil</h2>
-                        <p>Ordem de uso para reporte executivo</p>
+                        <h2>Jornada de Conversão</h2>
+                        <p>Visão executiva para apresentação</p>
                     </div>
                     <div className="chart-wrap">
                         <ResponsiveContainer width="100%" height="100%">
@@ -435,11 +441,11 @@ export default function App() {
                     </div>
                     <div className="metric-strip">
                         <div>
-                            <span>Open Rate</span>
+                            <span>Taxa de abertura</span>
                             <strong>{summary.openRate}</strong>
                         </div>
                         <div>
-                            <span>Click para Lead</span>
+                            <span>Conversão de clique em lead</span>
                             <strong>{summary.clickToLead}</strong>
                         </div>
                         <div>
@@ -452,28 +458,28 @@ export default function App() {
                 <article className="panel span-4">
                     <div className="panel-headline">
                         <h2>Fontes de Dados</h2>
-                        <p>RD, Turso e Redis</p>
+                        <p>Resumo por origem de informação</p>
                     </div>
                     <ul className="source-list">
                         <li>
                             <span className="source-tag source-rd">RD</span>
                             <div>
                                 <p>Email e automação</p>
-                                <small>{formatNumber(summary.sentForDisplay)} enviados · {summary.ctr} CTR</small>
+                                <small>{formatNumber(summary.sentForDisplay)} enviados · {summary.ctr} taxa de clique</small>
                             </div>
                         </li>
                         <li>
                             <span className="source-tag source-redis">REDIS</span>
                             <div>
-                                <p>Page views por evento</p>
+                                <p>Acessos nas páginas</p>
                                 <small>{formatNumber(summary.totalPageViews)} visitas rastreadas</small>
                             </div>
                         </li>
                         <li>
                             <span className="source-tag source-turso">TURSO</span>
                             <div>
-                                <p>Leads e eventos persistidos</p>
-                                <small>{formatNumber(leads.length)} linhas operacionais</small>
+                                <p>Leads e histórico comercial</p>
+                                <small>{formatNumber(leads.length)} registros salvos</small>
                             </div>
                         </li>
                     </ul>
@@ -487,8 +493,8 @@ export default function App() {
 
                 <article className="panel span-12">
                     <div className="panel-headline">
-                        <h2>Campanhas por Prioridade de Resultado</h2>
-                        <p>Organizado por Leads, com taxas de execução</p>
+                        <h2>Campanhas por Resultado</h2>
+                        <p>Organizado por leads e desempenho</p>
                     </div>
                     <div className="table-wrap">
                         <table className="data-table">
@@ -500,8 +506,8 @@ export default function App() {
                                     <th>Clicados</th>
                                     <th>Visitas</th>
                                     <th>Leads</th>
-                                    <th>CTR</th>
-                                    <th>Conv. Visita</th>
+                                    <th>Taxa de Clique</th>
+                                    <th>Conversão por Visita</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -527,8 +533,8 @@ export default function App() {
 
                 <article className="panel span-12">
                     <div className="panel-headline">
-                        <h2>RD Campaigns (dados reais)</h2>
-                        <p>Leitura direta do cache `rd_cache` sem heurística de matching</p>
+                        <h2>Campanhas de Email (RD)</h2>
+                        <p>Números recebidos diretamente da conta de e-mail</p>
                     </div>
                     <div className="table-wrap compact">
                         <table className="data-table">
@@ -538,9 +544,9 @@ export default function App() {
                                     <th>Enviados</th>
                                     <th>Abertos</th>
                                     <th>Clicados</th>
-                                    <th>Open Rate</th>
-                                    <th>Click Rate</th>
-                                    <th>Último cache</th>
+                                    <th>Taxa de Abertura</th>
+                                    <th>Taxa de Clique</th>
+                                    <th>Última atualização</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -557,7 +563,7 @@ export default function App() {
                                 ))}
                                 {summary.rdCampaignRows.length === 0 && (
                                     <tr>
-                                        <td colSpan={7}>Sem campanhas no cache RD. Use “Sync RD agora”.</td>
+                                        <td colSpan={7}>Ainda não há campanhas carregadas. Clique em “Atualizar dados do RD”.</td>
                                     </tr>
                                 )}
                             </tbody>
@@ -567,13 +573,13 @@ export default function App() {
 
                 <article className="panel span-4">
                     <div className="panel-headline">
-                        <h2>Rastro por Origem</h2>
-                        <p>Top fontes de entrada</p>
+                        <h2>Origem dos Contatos</h2>
+                        <p>Canais com maior volume</p>
                     </div>
                     <ul className="source-ranking">
                         {summary.sources.map((item) => (
                             <li key={item.src}>
-                                <span>{item.src}</span>
+                                <span>{displaySource(item.src)}</span>
                                 <strong>{formatNumber(item.count)}</strong>
                             </li>
                         ))}
@@ -583,8 +589,8 @@ export default function App() {
 
                 <article className="panel span-8">
                     <div className="panel-headline">
-                        <h2>Eventos RD em Tempo Quase Real</h2>
-                        <p>Webhook e rastros recentes</p>
+                        <h2>Interações Recentes no RD</h2>
+                        <p>Movimentações mais recentes da conta</p>
                     </div>
                     <div className="table-wrap compact">
                         <table className="data-table">
@@ -600,7 +606,7 @@ export default function App() {
                                 {rdEvents.slice(0, 12).map((item, index) => (
                                     <tr key={`${item.event_type || 'evt'}-${index}`}>
                                         <td>{new Date(item.occurred_at || item.created_at || Date.now()).toLocaleString()}</td>
-                                        <td>{item.event_type || 'unknown'}</td>
+                                        <td>{item.event_type || 'não informado'}</td>
                                         <td>{item.campaign_name || '--'}</td>
                                         <td>{maskEmail(item.lead_email)}</td>
                                     </tr>
@@ -617,8 +623,8 @@ export default function App() {
 
                 <article className="panel span-12">
                     <div className="panel-headline">
-                        <h2>Leads Operacionais (Turso)</h2>
-                        <p>Base para reporte comercial e execução</p>
+                        <h2>Leads Capturados</h2>
+                        <p>Base comercial para acompanhamento</p>
                     </div>
                     <div className="table-wrap compact">
                         <table className="data-table">
@@ -636,7 +642,7 @@ export default function App() {
                                     <tr key={`${lead.email || lead.phone || 'lead'}-${index}`}>
                                         <td>{new Date(lead.created_at || Date.now()).toLocaleString()}</td>
                                         <td>{lead.event || '--'}</td>
-                                        <td>{lead.src || 'direct'}</td>
+                                        <td>{displaySource(lead.src)}</td>
                                         <td>{lead.email || lead.phone || '--'}</td>
                                         <td>{lead.name || '--'}</td>
                                     </tr>
@@ -655,15 +661,28 @@ export default function App() {
             <footer className="panel dashboard-footer">
                 <div>
                     <ShieldCheck size={14} />
-                    <span>Painel unificado de reporte: RD + Turso + Redis</span>
+                    <span>Painel unificado de resultados</span>
                 </div>
                 <div>
                     <Database size={14} />
-                    <span>Sincronização automática a cada 30s</span>
+                    <span>Atualização automática a cada 30 segundos</span>
                 </div>
                 <div>
                     <BarChart3 size={14} />
-                    <span>Pronto para report comercial</span>
+                    <span>Pronto para apresentação ao cliente</span>
+                </div>
+                <div>
+                    <span>
+                        → Desenvolvido por ©{' '}
+                        <a
+                            href="https://neoprotocol.space/"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="footer-credit-link"
+                        >
+                            NΞØ PROTOCOL
+                        </a>
+                    </span>
                 </div>
             </footer>
         </main>
