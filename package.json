@@ -1,0 +1,9 @@
+{
+  "name": "dois-mais-ecosystem",
+  "private": true,
+  "workspaces": ["apps/*", "packages/*"],
+  "scripts": {
+    "dev:troia": "cd apps/troia && npm run dev",
+    "build:troia": "cd apps/troia && npm run build"
+  }
+}
