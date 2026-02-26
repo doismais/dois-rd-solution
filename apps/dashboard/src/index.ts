@@ -194,12 +194,10 @@ async function bootstrap() {
     // 2. Serve Troia Landing Page
     // We register this for the root prefix
     await fastify.register(fastifyStatic, {
-        root: path.resolve(__dirname, '../../troia'),
+        root: path.resolve(__dirname, '../landing'),
         prefix: '/',
         decorateReply: false // Só um plugin pode decorar
     });
-
-
 
     // SPA Fallback
     fastify.setNotFoundHandler(async (request, reply) => {
@@ -207,7 +205,7 @@ async function bootstrap() {
             return reply.sendFile('index.html', path.join(__dirname, '../public'));
         }
         // Fallback for landing page or other routes to landing page index
-        return reply.sendFile('index.html', path.resolve(__dirname, '../../troia'));
+        return reply.sendFile('index.html', path.resolve(__dirname, '../landing'));
     });
 
     const port = Number(process.env.PORT) || 3000;
