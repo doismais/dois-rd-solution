@@ -149,7 +149,7 @@ export default function App() {
                     className="card"
                     style={{ maxWidth: '400px', width: '100%', textAlign: 'center' }}
                 >
-                    <img src="./logo-rosa.png" srcSet="./logo-rosa.png" alt="Dois Mais" style={{ height: '40px', marginBottom: '2rem' }} />
+                    <img src="/logo-rosa.png" alt="Dois Mais" style={{ height: '40px', marginBottom: '2rem' }} />
                     <h1 style={{ marginBottom: '1.5rem', fontSize: '1.5rem' }}>Acesso Restrito</h1>
                     <form onSubmit={handleLogin}>
                         <input
@@ -174,7 +174,7 @@ export default function App() {
             <header style={{ padding: '1.5rem', borderBottom: '1px solid var(--card-border)', background: '#0A0A0B' }}>
                 <div className="flex justify-between items-center max-w-[1400px] margin-[0_auto]">
                     <div className="flex items-center gap-2">
-                        <img src="./logo-rosa.png" srcSet="./logo-rosa.png" alt="Dois Mais" style={{ height: '24px' }} />
+                        <img src="/logo-rosa.png" alt="Dois Mais" style={{ height: '24px' }} />
                         <div style={{ width: '1px', height: '20px', background: 'var(--card-border)', margin: '0 10px' }}></div>
                         <p style={{ fontWeight: 600 }}>Troia Produções</p>
                     </div>

@@ -63,6 +63,16 @@ export class Scheduler {
       )
     `);
         await this.db.execute("CREATE INDEX IF NOT EXISTS idx_leads_event ON leads(event)");
+
+        await this.db.execute(`
+      CREATE TABLE IF NOT EXISTS rd_tokens (
+        id            INTEGER PRIMARY KEY DEFAULT 1,
+        access_token  TEXT NOT NULL,
+        refresh_token TEXT NOT NULL,
+        expires_at    TEXT NOT NULL,
+        updated_at    TEXT NOT NULL
+      )
+    `);
     }
 
     async syncMetrics() {

@@ -45,6 +45,12 @@ async function bootstrap() {
     fastify.get('/api/metrics', async (request: FastifyRequest, reply: FastifyReply) => {
         // Simple secret check (Phase 4 requirement)
         const secret = request.headers['x-secret'];
+        console.log('[DEBUG] Auth Check:', {
+            received: secret,
+            expected: process.env.DASHBOARD_SECRET,
+            match: secret === process.env.DASHBOARD_SECRET
+        });
+
         if (secret !== process.env.DASHBOARD_SECRET) {
             return reply.code(401).send({ error: 'Unauthorized' });
         }
@@ -177,19 +183,23 @@ async function bootstrap() {
         return reply.code(405).send({ error: 'Method Not Allowed' });
     });
 
-    // Serve Troia Landing Page
+    // 1. Serve Dashboard Assets (React App)
+    // We register this first with prefix /dashboard/ to handle assets correctly
+    await fastify.register(fastifyStatic, {
+        root: path.join(__dirname, '../public'),
+        prefix: '/dashboard/',
+        decorateReply: true // Habilita sendFile
+    });
+
+    // 2. Serve Troia Landing Page
+    // We register this for the root prefix
     await fastify.register(fastifyStatic, {
         root: path.resolve(__dirname, '../../troia'),
         prefix: '/',
-        decorateReply: false
+        decorateReply: false // Só um plugin pode decorar
     });
 
-    // Serve Dashboard (React App)
-    await fastify.register(fastifyStatic, {
-        root: path.join(__dirname, '../public'),
-        prefix: '/dashboard',
-        decorateReply: false
-    });
+
 
     // SPA Fallback
     fastify.setNotFoundHandler(async (request, reply) => {
