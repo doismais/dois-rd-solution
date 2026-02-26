@@ -69,7 +69,7 @@ export class Scheduler {
         id            INTEGER PRIMARY KEY DEFAULT 1,
         access_token  TEXT NOT NULL,
         refresh_token TEXT NOT NULL,
-        expires_at    TEXT NOT NULL,
+        expires_at    INTEGER NOT NULL,
         updated_at    TEXT NOT NULL
       )
     `);
