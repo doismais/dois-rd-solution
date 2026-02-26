@@ -256,7 +256,7 @@ export default function App() {
                 <motion.section initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="auth-card panel">
                     <div className="auth-orb" />
                     <div className="auth-brand">
-                        <img src="/logo-rosa.png" alt="Dois Mais" className="auth-logo" />
+                        <img src="/dashboard/logo-rosa.png" alt="Dois Mais" className="auth-logo" />
                         <span className="auth-chip">Network: Dois Mais Core</span>
                     </div>
                     <h1 className="auth-title">Acesso Assinado de Sessão</h1>
@@ -295,7 +295,7 @@ export default function App() {
         <main className="app-shell">
             <header className="app-header panel">
                 <div className="brand-block">
-                    <img src="/logo-rosa.png" alt="Dois Mais" className="brand-logo" />
+                    <img src="/dashboard/logo-rosa.png" alt="Dois Mais" className="brand-logo" />
                     <div>
                         <p className="brand-title">Dois Mais · Radar Operacional</p>
                         <p className="brand-subtitle">Cliente: Troia Produções</p>
