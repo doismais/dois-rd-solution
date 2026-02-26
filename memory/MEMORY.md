@@ -54,3 +54,4 @@ Ver `.env.example` em `apps/dashboard/`.
 - `apps/dashboard/src/storage/adapters/turso.ts` — persistência leads
 - `apps/dashboard/src/storage/adapters/upstash.ts` — page views (Redis)
 - `apps/dashboard/railway.toml` — config deploy Railway
+- `docs/RD_API_WEBHOOK_PLAYBOOK.md` — playbook operacional definitivo (OAuth + webhooks + troubleshooting)

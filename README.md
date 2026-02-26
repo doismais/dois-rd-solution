@@ -279,6 +279,7 @@ interface StorageAdapter {
 
 ## Documentação adicional
 
+- `docs/RD_API_WEBHOOK_PLAYBOOK.md` — guia operacional completo de OAuth + Webhooks RD (Conversão e Oportunidade)
 - `DEV_AGENT_PROMPT.md` — spec técnica completa por fase
 - `CHANGE_BRIEF.md` — mudanças de arquitetura (tem precedência sobre o prompt)
 - Notion: `⬡ ECOSYSTEM_ARCH` — visão do ecossistema Dois Mais
