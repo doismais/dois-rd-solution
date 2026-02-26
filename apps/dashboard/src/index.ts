@@ -58,8 +58,7 @@ async function bootstrap() {
         const metrics = await storage.getAllMetrics();
 
         // Fetch RD Cache data for these metrics
-        const rdData = await rd.db.execute("SELECT * FROM rd_cache");
-        const rdMap = new Map(rdData.rows.map(row => [row.campaign_id, row]));
+        const rdData = await rd.db.execute("SELECT * FROM rd_cache ORDER BY cached_at DESC");
 
         // Enhancement: Try to match RD Campaigns with Local Events
         // This is a simplified matching for the funnel
@@ -86,7 +85,8 @@ async function bootstrap() {
 
         return {
             updatedAt: new Date().toISOString(),
-            campaigns: enhancedMetrics
+            campaigns: enhancedMetrics,
+            rdCampaigns: rdData.rows
         };
     });
 
@@ -152,6 +152,16 @@ async function bootstrap() {
 
         const result = await rd.db.execute("SELECT * FROM rd_events ORDER BY created_at DESC LIMIT 20");
         return result.rows;
+    });
+
+    fastify.post('/api/rd/sync', async (request: FastifyRequest, reply: FastifyReply) => {
+        const secret = request.headers['x-secret'];
+        if (secret !== process.env.DASHBOARD_SECRET) {
+            return reply.code(401).send({ error: 'Unauthorized' });
+        }
+
+        await scheduler.syncMetrics();
+        return { ok: true };
     });
 
     // Health check

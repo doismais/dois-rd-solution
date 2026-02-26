@@ -28,8 +28,20 @@ interface Campaign {
     leads: number;
 }
 
+interface RDCampaign {
+    campaign_id?: string | number;
+    campaign_name?: string;
+    sent?: number;
+    opened?: number;
+    clicked?: number;
+    open_rate?: number;
+    click_rate?: number;
+    cached_at?: string;
+}
+
 interface MetricsResponse {
     campaigns: Campaign[];
+    rdCampaigns?: RDCampaign[];
     updatedAt: string;
 }
 
@@ -105,9 +117,13 @@ const KpiCard = ({ priority, title, value, subtitle, tone, icon: Icon }: KpiCard
 );
 
 export default function App() {
+    const LOGIN_PATH = '/dashboard';
+    const PANEL_PATH = '/dashboard/painel';
+
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
+    const [syncingRD, setSyncingRD] = useState(false);
     const [metrics, setMetrics] = useState<MetricsResponse | null>(null);
     const [rdEvents, setRdEvents] = useState<RDEvent[]>([]);
     const [leads, setLeads] = useState<LeadRow[]>([]);
@@ -155,6 +171,22 @@ export default function App() {
         fetchData(password);
     };
 
+    const syncRDNow = async () => {
+        if (!password) return;
+        setSyncingRD(true);
+        try {
+            await fetch('/api/rd/sync', {
+                method: 'POST',
+                headers: { 'x-secret': password }
+            });
+            await fetchData(password);
+        } catch (error) {
+            console.error(error);
+        } finally {
+            setSyncingRD(false);
+        }
+    };
+
     useEffect(() => {
         const saved = localStorage.getItem('_dm_auth');
         if (saved) {
@@ -170,13 +202,39 @@ export default function App() {
         return () => window.clearInterval(interval);
     }, []);
 
+    useEffect(() => {
+        const path = window.location.pathname.replace(/\/+$/, '') || '/';
+        const loginPath = LOGIN_PATH;
+        const panelPath = PANEL_PATH;
+
+        if (isAuthenticated) {
+            if (path === loginPath || path === '/') {
+                window.history.replaceState({}, '', panelPath);
+            }
+            return;
+        }
+
+        if (path !== loginPath) {
+            window.history.replaceState({}, '', loginPath);
+        }
+    }, [isAuthenticated]);
+
     const summary = useMemo(() => {
         const campaigns = metrics?.campaigns || [];
+        const rdCampaigns = metrics?.rdCampaigns || [];
         const totalSent = campaigns.reduce((acc, item) => acc + safeNum(item.sent), 0);
         const totalOpened = campaigns.reduce((acc, item) => acc + safeNum(item.opened), 0);
         const totalClicked = campaigns.reduce((acc, item) => acc + safeNum(item.clicked), 0);
         const totalPageViews = campaigns.reduce((acc, item) => acc + safeNum(item.pageViews), 0);
         const totalLeads = campaigns.reduce((acc, item) => acc + safeNum(item.leads), 0);
+
+        const rdSentRaw = rdCampaigns.reduce((acc, item) => acc + safeNum(Number(item.sent || 0)), 0);
+        const rdOpenedRaw = rdCampaigns.reduce((acc, item) => acc + safeNum(Number(item.opened || 0)), 0);
+        const rdClickedRaw = rdCampaigns.reduce((acc, item) => acc + safeNum(Number(item.clicked || 0)), 0);
+
+        const sentForDisplay = totalSent > 0 ? totalSent : rdSentRaw;
+        const openedForDisplay = totalOpened > 0 ? totalOpened : rdOpenedRaw;
+        const clickedForDisplay = totalClicked > 0 ? totalClicked : rdClickedRaw;
 
         const opportunities = rdEvents.filter((item) =>
             String(item.event_type || '').toLowerCase().includes('opportunity')
@@ -219,31 +277,55 @@ export default function App() {
             })
             .sort((a, b) => b.leads - a.leads);
 
+        const rdCampaignRows = rdCampaigns
+            .map((item, index) => {
+                const sent = safeNum(Number(item.sent || 0));
+                const opened = safeNum(Number(item.opened || 0));
+                const clicked = safeNum(Number(item.clicked || 0));
+                const name = item.campaign_name || `campaign-${index + 1}`;
+
+                return {
+                    id: String(item.campaign_id || index),
+                    name,
+                    sent,
+                    opened,
+                    clicked,
+                    openRate: item.open_rate ? `${Number(item.open_rate).toFixed(1)}%` : formatPercent(opened, sent),
+                    clickRate: item.click_rate ? `${Number(item.click_rate).toFixed(1)}%` : formatPercent(clicked, sent),
+                    cachedAt: item.cached_at
+                };
+            })
+            .sort((a, b) => b.sent - a.sent);
+
         return {
             campaigns,
+            rdCampaignRows,
             totalSent,
             totalOpened,
             totalClicked,
             totalPageViews,
             totalLeads,
+            sentForDisplay,
+            openedForDisplay,
+            clickedForDisplay,
             opportunities,
             eventsMissingCampaign,
             eventsMissingLead,
             leadsWithoutSrc,
             sources,
             campaignRows,
-            openRate: formatPercent(totalOpened, totalSent),
-            ctr: formatPercent(totalClicked, totalSent),
+            openRate: formatPercent(openedForDisplay, sentForDisplay),
+            ctr: formatPercent(clickedForDisplay, sentForDisplay),
             visitToLead: formatPercent(totalLeads, totalPageViews),
-            clickToLead: formatPercent(totalLeads, totalClicked)
+            clickToLead: formatPercent(totalLeads, clickedForDisplay)
         };
     }, [metrics, rdEvents, leads]);
 
     const funnelData = useMemo(() => {
         return [
-            { stage: 'Enviados', value: summary.totalSent, color: '#6f7f91' },
-            { stage: 'Abertos', value: summary.totalOpened, color: '#f4b942' },
-            { stage: 'Clicados', value: summary.totalClicked, color: '#ff4f8b' },
+            { stage: 'Enviados', value: summary.sentForDisplay, color: '#6f7f91' },
+            { stage: 'Abertos', value: summary.openedForDisplay, color: '#f4b942' },
+            { stage: 'Clicados', value: summary.clickedForDisplay, color: '#ff4f8b' },
             { stage: 'Visitas', value: summary.totalPageViews, color: '#34c3ff' },
             { stage: 'Leads', value: summary.totalLeads, color: '#43dd98' },
             { stage: 'Oportunidades', value: summary.opportunities, color: '#9f7bff' }
@@ -305,6 +387,10 @@ export default function App() {
                     <span className="last-update">
                         Atualizado: {metrics?.updatedAt ? new Date(metrics.updatedAt).toLocaleTimeString() : '--:--'}
                     </span>
+                    <button className="ghost-btn" onClick={syncRDNow} disabled={syncingRD}>
+                        <Database size={16} />
+                        <span>{syncingRD ? 'Sincronizando RD...' : 'Sync RD agora'}</span>
+                    </button>
                     <button className="ghost-btn" onClick={() => fetchData(password)}>
                         <RefreshCw size={16} />
                         <span>Atualizar</span>
@@ -316,7 +402,7 @@ export default function App() {
                 <div className="span-2"><KpiCard priority="1" title="Leads" value={formatNumber(summary.totalLeads)} subtitle="Turso · captação final" tone="green" icon={Users} /></div>
                 <div className="span-2"><KpiCard priority="2" title="Oportunidades" value={formatNumber(summary.opportunities)} subtitle="RD Webhook · oportunidade" tone="purple" icon={Target} /></div>
                 <div className="span-2"><KpiCard priority="3" title="Visitas" value={formatNumber(summary.totalPageViews)} subtitle="Redis · tráfego rastreado" tone="blue" icon={MousePointer2} /></div>
-                <div className="span-2"><KpiCard priority="4" title="Emails Enviados" value={formatNumber(summary.totalSent)} subtitle="RD Campaign Analytics" tone="pink" icon={Send} /></div>
+                <div className="span-2"><KpiCard priority="4" title="Emails Enviados" value={formatNumber(summary.sentForDisplay)} subtitle="RD Campaign Analytics" tone="pink" icon={Send} /></div>
                 <div className="span-2"><KpiCard priority="5" title="CTR" value={summary.ctr} subtitle="Clicados / Enviados" tone="yellow" icon={Mail} /></div>
                 <div className="span-2"><KpiCard priority="6" title="Visita para Lead" value={summary.visitToLead} subtitle="Leads / Visitas" tone="slate" icon={Activity} /></div>
 
@@ -373,7 +459,7 @@ export default function App() {
                             <span className="source-tag source-rd">RD</span>
                             <div>
                                 <p>Email e automação</p>
-                                <small>{formatNumber(summary.totalSent)} enviados · {summary.ctr} CTR</small>
+                                <small>{formatNumber(summary.sentForDisplay)} enviados · {summary.ctr} CTR</small>
                             </div>
                         </li>
                         <li>
@@ -434,6 +520,46 @@ export default function App() {
                                         <td>{row.leadRate}</td>
                                     </tr>
                                 ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </article>
+
+                <article className="panel span-12">
+                    <div className="panel-headline">
+                        <h2>RD Campaigns (dados reais)</h2>
+                        <p>Leitura direta do cache `rd_cache` sem heurística de matching</p>
+                    </div>
+                    <div className="table-wrap compact">
+                        <table className="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Campanha RD</th>
+                                    <th>Enviados</th>
+                                    <th>Abertos</th>
+                                    <th>Clicados</th>
+                                    <th>Open Rate</th>
+                                    <th>Click Rate</th>
+                                    <th>Último cache</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {summary.rdCampaignRows.slice(0, 20).map((row) => (
+                                    <tr key={row.id}>
+                                        <td><strong>{row.name}</strong></td>
+                                        <td>{formatNumber(row.sent)}</td>
+                                        <td>{formatNumber(row.opened)}</td>
+                                        <td>{formatNumber(row.clicked)}</td>
+                                        <td>{row.openRate}</td>
+                                        <td>{row.clickRate}</td>
+                                        <td>{row.cachedAt ? new Date(row.cachedAt).toLocaleString() : '--'}</td>
+                                    </tr>
+                                ))}
+                                {summary.rdCampaignRows.length === 0 && (
+                                    <tr>
+                                        <td colSpan={7}>Sem campanhas no cache RD. Use “Sync RD agora”.</td>
+                                    </tr>
+                                )}
                             </tbody>
                         </table>
                     </div>
