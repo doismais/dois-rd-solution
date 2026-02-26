@@ -23,6 +23,84 @@ Evitar retrabalho em OAuth e Webhooks do RD Station, padronizando:
   - `rd_cache` (analytics de e-mail)
   - `leads` (interações)
 
+## Decisão de superfícies (mantida)
+
+- `GET /` é a superfície de narrativa e captura (landing)
+- `GET /dashboard` é a superfície operacional (visão e decisão)
+- ambos no mesmo backend para reduzir latência e reduzir pontos de falha
+
+## Forense da confusão Railway x Vercel
+
+Fato técnico:
+
+- a raiz do Railway (`/`) entrega a landing da Troia por design
+- por isso visualmente parece o mesmo site que já existia no Vercel
+- não é redirecionamento para Vercel
+
+Causas do ruído:
+
+1. histórico com app legado duplicado (`apps/troia`) e migração para `apps/dashboard/landing`
+2. links antigos para `troiaproducoes2026.vercel.app` em templates de e-mail e guia
+3. callback OAuth com variável errada em produção no início da operação
+
+Estado atual:
+
+- legado `apps/troia` removido
+- webhook robustecido e testado
+- token flow com refresh e retry em `401` publicado
+
+## Decisão sobre legado de links
+
+Decisão atual:
+
+- não executar limpeza de links legados agora
+- manter coexistência intencional quando isso acelerar operação comercial
+- revisar apenas se a coexistência começar a degradar leitura de dados ou conversão
+
+## Plano de rastreabilidade de fluxos (cliente)
+
+Objetivo: capturar rastros de quem passou por links, jornada e desfecho.
+
+1. Padrão único de links:
+   - `src`, `medium`, `campaign`, `event`, `asset`, `offer`, `audience`, `variant`, `rd_step`, `trace_id`
+2. Endpoint de redirecionamento:
+   - criar `/r/:token` para registrar clique e redirecionar com contexto preservado
+3. Eventos de jornada na landing:
+   - `page_view`, `scroll_25_50_75_100`, `cta_whatsapp_click`, `exit_intent`, `time_on_page`, `return_visit`
+4. Modelo canônico de eventos:
+   - tabela `journey_events` com `event_name`, `occurred_at`, `session_id`, `trace_id`, `source`, `campaign_id`, `lead_email`, `lead_phone`, `payload_json`
+5. Costura de identidade:
+   - prioridade `email` > `phone` > `rd_contact_id` > `session_id`
+6. Regras de atribuição:
+   - `first_touch`, `last_touch`, `assisted_touch`, `time_decay`
+7. Painéis de decisão:
+   - fluxo por campanha
+   - mapa de abandono
+   - clique para oportunidade
+   - tempo até conversão
+   - canal com maior LTV
+
+## Metas de qualidade de dados
+
+1. cobertura de rastreio maior que 95 por cento dos cliques
+2. reconciliação clique para oportunidade maior que 80 por cento
+3. diagnóstico de campanha em menos de 10 minutos
+
+## Upgrade do dashboard (produto)
+
+Problema:
+
+- UI atual cumpre função, mas não traduz maturidade analítica
+
+Direção de melhoria:
+
+1. visão executiva com blocos de impacto no topo (não só cards de contagem)
+2. timeline de eventos e oportunidades por campanha
+3. destaque de gargalo por etapa do funil
+4. filtros globais por período, evento, origem e campanha
+5. tabela operacional com ordenação, busca e exportação
+6. alertas visuais para quedas abruptas de conversão
+
 ## OAuth2 do RD Station (sem erro de parâmetro)
 
 URL correta de autorização:
@@ -173,4 +251,3 @@ Antes de qualquer ativação:
 - `Unsupported type of value` no webhook:
   - payload não compatível com parser ativo em produção
   - usar formato legado ou publicar parser robusto
-
