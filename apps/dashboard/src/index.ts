@@ -104,30 +104,43 @@ async function bootstrap() {
     // RD Station Webhook (Live Events)
     fastify.post('/api/rd/webhook', async (request: FastifyRequest, reply: FastifyReply) => {
         const payload = request.body as any;
+        const nowIso = new Date().toISOString();
+        const events = Array.isArray(payload)
+            ? payload
+            : Array.isArray(payload?.events)
+                ? payload.events
+                : payload
+                    ? [payload]
+                    : [];
 
-        // RD Station sends an array of events
-        if (Array.isArray(payload)) {
-            for (const event of payload) {
-                const event_type = event.event_type;
-                const lead = event.lead || {};
-                const campaign = event.campaign || {};
+        for (const rawEvent of events) {
+            const event = (rawEvent && typeof rawEvent === 'object') ? rawEvent : { raw: rawEvent };
+            const lead = event.lead || event.contact || {};
+            const campaign = event.campaign || {};
+            const eventType = event.event_type || event.eventType || event.type || 'unknown';
+            const campaignId = campaign.id ?? event.campaign_id ?? event.campaignId ?? null;
+            const campaignName = campaign.name || event.campaign_name || event.campaignName || null;
+            const occurredAtRaw = event.occurred_at || event.occurredAt || event.created_at || event.timestamp;
+            const parsedOccurredAt = occurredAtRaw ? new Date(occurredAtRaw) : null;
+            const occurredAt = parsedOccurredAt && !Number.isNaN(parsedOccurredAt.getTime())
+                ? parsedOccurredAt.toISOString()
+                : nowIso;
 
-                await rd.db.execute({
-                    sql: `INSERT INTO rd_events (event_type, lead_email, campaign_id, campaign_name, occurred_at, raw_payload) 
-                          VALUES (?, ?, ?, ?, ?, ?)`,
-                    args: [
-                        event_type,
-                        lead.email || null,
-                        campaign.id || null,
-                        campaign.name || null,
-                        new Date().toISOString(),
-                        JSON.stringify(event)
-                    ]
-                });
-            }
+            await rd.db.execute({
+                sql: `INSERT INTO rd_events (event_type, lead_email, campaign_id, campaign_name, occurred_at, raw_payload) 
+                      VALUES (?, ?, ?, ?, ?, ?)`,
+                args: [
+                    String(eventType),
+                    lead.email || event.email || null,
+                    campaignId,
+                    campaignName,
+                    occurredAt,
+                    JSON.stringify(event)
+                ]
+            });
         }
 
-        return reply.code(200).send({ ok: true });
+        return reply.code(200).send({ ok: true, received: events.length });
     });
 
     // Live Feed (last 20 events)

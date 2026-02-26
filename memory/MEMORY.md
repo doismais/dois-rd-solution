@@ -3,8 +3,8 @@
 ## Estrutura
 - Monorepo em `/Users/nettomello/neomello/projects/clientes/dois_mais/dois_mais_rd_solution`
 - `apps/dashboard` — Fastify (TypeScript) + React (Vite) client
-- `apps/troia` — Landing page estática (HTML/CSS/JS)
-- O Fastify serve os dois: Troia em `/`, React em `/dashboard`
+- `apps/dashboard/landing` — Landing page estática (HTML/CSS/JS)
+- O Fastify serve os dois: landing em `/`, React em `/dashboard`
 
 ## Stack
 - **Servidor:** Fastify 4, TypeScript, Node
@@ -37,6 +37,15 @@ Ver `.env.example` em `apps/dashboard/`.
 1. `scheduler.ts` — adicionado `CREATE TABLE IF NOT EXISTS leads` no `initSchema()`
 2. `package.json` — `client:build` agora inclui `npm install` antes do build
 3. `.env.example` — `RD_REDIRECT_URI` atualizado para placeholder da URL Railway
+
+## Webhook RD - Status atual
+- Em 26 de fevereiro de 2026, `POST /api/rd/webhook` foi testado em produção
+- URL: `https://dois-rd-solution-production.up.railway.app/api/rd/webhook`
+- Payload de teste: evento `conversion` com `lead.email` e `campaign`
+- Resposta observada: `{"ok":true}`
+- Endpoint ajustado para aceitar webhook de `Conversão` e `Oportunidade` (array ou objeto único)
+- Fallback de tipo de evento: `event_type`, `eventType` ou `type`
+- Uso futuro: ampliar parsing e normalização de eventos para cobertura completa dos gatilhos do RD
 
 ## Arquivos Chave
 - `apps/dashboard/src/index.ts` — servidor principal, todas as rotas

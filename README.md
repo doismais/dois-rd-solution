@@ -59,8 +59,6 @@ RD Station           Landing Page           WhatsApp Click
 ```
 dois_mais_rd_solution/
 ├── apps/
-│   ├── troia/                    ← landing page (HTML/CSS/JS)
-│   │   └── index.html            ← serve via @fastify/static
 │   └── dashboard/                ← serviço Railway (único deploy)
 │       ├── src/
 │       │   ├── index.ts          ← Fastify bootstrap
@@ -173,14 +171,47 @@ UPSTASH_REDIS_REST_TOKEN=
 
 ---
 
+## Status do webhook RD (26 de fevereiro de 2026)
+
+- Endpoint operacional em produção: `POST /api/rd/webhook`
+- URL de integração para o RD Station: `https://dois-rd-solution-production.up.railway.app/api/rd/webhook`
+- Teste manual executado em 26 de fevereiro de 2026 com payload de conversão
+- Resposta recebida do serviço: `{"ok":true}`
+
+Payload usado no teste:
+
+```json
+[
+  {
+    "event_type": "conversion",
+    "lead": { "email": "teste@exemplo.com" },
+    "campaign": { "id": "1", "name": "teste" }
+  }
+]
+```
+
+Próxima implementação sugerida:
+
+- evoluir parser de eventos do webhook para mapear campos de conversão por tipo de evento e versionar schema de payload
+- criar e manter dois webhooks no RD Station usando a mesma URL: um com gatilho `Conversão` e outro com gatilho `Oportunidade`
+
+Configuração recomendada no RD Station para Oportunidade:
+
+- `Nome`: `dois-mais-rd-webhook-oportunidade`
+- `URL`: `https://dois-rd-solution-production.up.railway.app/api/rd/webhook`
+- `Gatilho`: `Oportunidade`
+- Endpoint preparado para receber payload em lista (`[]`) ou objeto único (`{}`) com fallback de `event_type` (`event_type`, `eventType` ou `type`)
+
+---
+
 ## Como o tracking funciona
 
 A landing não tem formulário — o CTA é WhatsApp. O tracking é feito via intercepção do clique:
 
 ```js
-// index.html (apps/troia/)
+// index.html (apps/dashboard/landing/)
 async function trackAndRedirect(waUrl) {
-  await fetch(RAILWAY_URL + '/api/leads', {
+  await fetch(API_BASE_URL + '/api/leads', {
     method: 'POST',
     keepalive: true,  // garante envio mesmo com redirect
     body: JSON.stringify({ event, src })
@@ -212,11 +243,10 @@ railway variables set RD_REDIRECT_URI=https://[railway-url]/api/rd/callback
 # 2. Deploy
 railway up
 
-# 3. Após deploy: atualizar RAILWAY_URL em apps/troia/index.html
-# 4. Fazer OAuth: acessar https://[railway-url]/api/rd/auth no browser
+# 3. Fazer OAuth: acessar https://[railway-url]/api/rd/auth no browser
 ```
 
-**Atenção:** o Railway deve ter apenas UM serviço — o `apps/dashboard/`. A landing (`apps/troia/`) é servida como asset estático por dentro desse serviço via `@fastify/static`. Nunca fazer deploy de `apps/troia/` separado.
+**Atenção:** o Railway deve ter apenas UM serviço — o `apps/dashboard/`. A landing (`apps/dashboard/landing/`) é servida como asset estático por dentro desse serviço via `@fastify/static`.
 
 ---
 
@@ -241,7 +271,7 @@ interface StorageAdapter {
 2. Executar schema SQL acima no novo DB
 3. Criar App no RD Station App Store do cliente
 4. Criar novo projeto no Railway
-5. Copiar `apps/troia/` → `apps/[cliente]/` e adaptar o HTML
+5. Copiar `apps/dashboard/landing/` para uma nova landing de cliente e adaptar o HTML
 6. Configurar vars do novo ambiente
 7. `railway up` de dentro do novo serviço
 

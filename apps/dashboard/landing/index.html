@@ -206,14 +206,14 @@
 
     <script>
         // API Configuration
-        const RAILWAY_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+        const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
             ? 'http://localhost:3000'
-            : 'https://dois-mais-dashboard.up.railway.app'; // Atualizar após primeiro deploy
+            : window.location.origin;
 
         async function trackEngagement(endpoint, data) {
             try {
                 // Fire and forget, but with fallback for keepalive
-                fetch(`${RAILWAY_URL}${endpoint}`, {
+                fetch(`${API_BASE_URL}${endpoint}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(data),
