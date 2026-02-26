@@ -107,6 +107,14 @@ const displaySource = (src?: string): string => {
     return src || 'direto';
 };
 
+const normalizeForMatch = (value?: string): string => {
+    return String(value || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '');
+};
+
 const KpiCard = ({ priority, title, value, subtitle, tone, icon: Icon }: KpiCardProps) => (
     <motion.article
         initial={{ opacity: 0, y: 8 }}
@@ -272,7 +280,7 @@ export default function App() {
             .sort((a, b) => b.count - a.count)
             .slice(0, 6);
 
-        const campaignRows = campaigns
+        const localCampaignRows = campaigns
             .map((item) => {
                 const sent = safeNum(item.sent);
                 const opened = safeNum(item.opened);
@@ -281,6 +289,7 @@ export default function App() {
                 const leadsCount = safeNum(item.leads);
 
                 return {
+                    id: `local-${item.event}`,
                     name: item.rdName || item.event,
                     event: item.event,
                     sent,
@@ -316,6 +325,42 @@ export default function App() {
                 };
             })
             .sort((a, b) => b.sent - a.sent);
+
+        const usedLocalEvents = new Set<string>();
+        const rdDrivenRows = rdCampaignRows.map((rdRow) => {
+            const rdKey = normalizeForMatch(rdRow.name);
+            const localMatch = localCampaignRows.find((localRow) => {
+                const localKey = normalizeForMatch(localRow.event || localRow.name);
+                return rdKey.includes(localKey) || localKey.includes(rdKey);
+            });
+
+            if (localMatch?.event) {
+                usedLocalEvents.add(localMatch.event);
+            }
+
+            const pageViews = safeNum(localMatch?.pageViews);
+            const leadsCount = safeNum(localMatch?.leads);
+
+            return {
+                id: `rd-${rdRow.id}`,
+                name: rdRow.name,
+                event: localMatch?.event || String(rdRow.id),
+                sent: rdRow.sent,
+                opened: rdRow.opened,
+                clicked: rdRow.clicked,
+                pageViews,
+                leads: leadsCount,
+                ctr: formatPercent(rdRow.clicked, rdRow.sent),
+                leadRate: formatPercent(leadsCount, pageViews)
+            };
+        });
+
+        const localOnlyRows = localCampaignRows.filter((row) => !usedLocalEvents.has(row.event));
+        const campaignRows = [...rdDrivenRows, ...localOnlyRows].sort((a, b) => {
+            const scoreA = (a.sent * 10) + (a.leads * 100) + a.pageViews;
+            const scoreB = (b.sent * 10) + (b.leads * 100) + b.pageViews;
+            return scoreB - scoreA;
+        });
 
         return {
             campaigns,
@@ -539,10 +584,10 @@ export default function App() {
                             </thead>
                             <tbody>
                                 {summary.campaignRows.map((row) => (
-                                    <tr key={row.event}>
+                                    <tr key={row.id}>
                                         <td>
                                             <strong>{row.name}</strong>
-                                            <span>{row.event}</span>
+                                            <span>{row.event && row.event !== row.name ? row.event : '--'}</span>
                                         </td>
                                         <td>{formatNumber(row.sent)}</td>
                                         <td>{formatNumber(row.opened)}</td>
